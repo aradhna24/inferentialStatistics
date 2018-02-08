@@ -1,0 +1,159 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+  * The dataset used for this project has been extracted from General Social Survey (GSS) conducted by the National Opinion Research Center(NORC) targetting the adults living in the United States.
+  * GSS aims at monitoring societal change and studying the growing complexity of the American society, thereby, includes both demographic information and respondents' opinions on matters ranging from government spending to the state of race relations to the existence and nature of God.
+  * There are a total of 57,061 cases and 114 variables in this dataset. Note that this is a cumulative data file for surveys conducted between 1972 - 2012 and that not all respondents answered all questions in all years.
+
+  * **Scope of Inference - Generalizability**
+      * The GSS dataset is composed of observations from random samples of the US population.The study employed random sampling, so as to make it broadly generalizable to the US population. 
+      * As per Appendix A of GSS Codebook, the samples closely resemble distributions reported in the Census and other authoritative sources which furthermore supports the inference that the results drawn out from analyzing this dataset can be generalized to the US population.
+    
+  * **Scope of Inference  - Causality**
+      * The survey is observational as the methodology includes interviewing random sample of US residents about their economic condition, their working status, their health, their beliefs, etc.Hence, we can only establish association but not causal links between the variables of interest.
+      * Causal inferences cannot be made because random assignment was not used for controlled experiments.
+
+* * *
+
+## Part 2: Research question
+
+  * The research question chosen for this project to perform statistical inference tests is:
+  
+    ```
+        Is there a relationship between respondents' number of children and his/her financial satisfaction?
+    ```    
+  * Variables used in this analysis:
+  
+      * **childs:** Number of children in the family is represented as a categorical variable for this analysis.
+      * **satfin:** Categorical variable indicating satisfaction with current financial situation.
+  * It is vital for a nation to mitigate economic concerns prevailing within the country. One of the steps include ensuring the residents stay financially satisfied. I am interested in finding out if having more number of children has impact on the financial satisfaction of respondents.
+  * The inferences drawn out of the analysis can be used to spread awareness to the audience upon the key to financial satisfaction.
+  * In this analysis, we will be considering only the extreme cases i.e. 'Satisfied' and 'Not At All Satisfied', hence, will be filtering out 'NA' and 'More or Less' cases.
+  
+```{r}
+gss %>%
+        filter(!is.na(childs) &
+        !is.na(satfin) &
+        !is.na(year)&
+        satfin != "More Or Less")%>%
+select(childs,satfin) -> gss_childs
+
+gss_childs %>%
+  mutate(childs = as.character(childs)) -> gss_childs
+```
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+  * The data used for this analysis comprises of 29183 observations.
+  * The **summary statistics** of the dataset having the two variables of interest i.e. childs abd satfin is obtained.
+  
+```{r}
+summary(gss_childs)
+```
+  *  Furthermore, a two way table is plotted corresponding to childs and satfin data to observe the **proportion of financial satisfaction against no. of children**.
+```{r}
+color <- c("Light Blue","Blue","Dark Blue")
+plot(table(gss_childs$childs,gss_childs$satfin) ,col = color, las = 1 ,
+     xlab = "No.of Children", ylab = "Financial Satisfaction", 
+     main = "Financial Satisfaction against No. of Children")
+```
+  
+  * Interestingly, we observe the proportion of Satisfied respondents decrease when their number of children are high(more than 5).
+  * On the other hand, the proportion of both 'Satisfied' and 'Not At All Satisfied' groups are fairly equal when the number of children is less(Less than equal to 5)
+ 
+ * We now explore the data through bar chart. 
+```{r}
+ggplot(aes(x=childs), data=gss_childs) + geom_bar(aes(fill=satfin), position = position_dodge()) + ggtitle('No. of Children vs. Financial Satisfaction')
+```
+
+  * **Observations:** We observe high number of respondents falling under 'Satisfied' group when the number of children are less than 5 whereas, high number of respondents fall under 'Not At All Satisfied' having number of children 8 or more.
+  
+* * *
+
+## Part 4: Inference
+
+  **4.1 State Hypothesis** 
+  
+  * **Null Hypothesis** ***(Nothing is going on):*** The number of children and financial satisfaction are independent.
+  
+  * **Alternative Hypothesis** ***(Something is going on):*** The number of children and financial satisfaction are dependent.
+  
+  **4.2 Check Conditions**
+      
+  1. **Independence between observations:** This is assumed to be true as the GSS survey is a random sample survey(stated in Part 1). If sampling without replacement, 29183(sample size) is less than 10% of the population.
+  2. **Sample Size:** As can be seen in the two-way table below, each cell has atleast 5 expected counts.
+      
+  * The below code snippet gives a two way table with childs being the explanatory variable and satfin being the response variable.
+  
+```{r}
+gssTable <- table(gss_childs$satfin, gss_childs$childs, exclude = "More Or Less")
+gssTable
+```
+
+  **4.3 Methods**
+  
+  * For this analysis, we have two categorical variables:
+       * satfin : having 2 levels (Note: More or Less has been omitted for this analysis)
+       * childs : having 8 levels
+  
+  Hence, the hypothesis test to be performed is ***chi-sq test of independence***
+  
+  * The chi square tests consists of calculating expected values assuming that the null hypothesis **(Ho)** is true. This is done through the following calculation:
+    * For each cell, we look at the observed minus the expected square, divide by the expected counts and we add this over for each of the cells.
+    * The degree of freedom is calculated as number of levels for both of the categorical variables.
+  * To calculate p-value using R, we use the function **p chi square** that takes the following arguments:
+      * observed chi square statistics
+      * degrees of freedom
+      * required tail area
+
+The chi-square test does not define confidence intervals, so these were not included in this analysis.
+
+  **4.4 Inference**
+  
+  * Summary of the two-way table gives the required Chi Square Statistics and the degree of freedom
+```{r}
+summary(gssTable)
+```
+  * By using ***pchisq*** function and passing Chi Square Statistic and degrees of Freedom values, we get the required P value to make the conclusion.
+  
+  
+```{r}
+pchisq(93.57, 8, lower.tail = FALSE)
+```
+
+  * We may also use the built-in function ***chisq.test*** to find out the p-value.
+  
+  **4.5 Interpretation of results**
+  
+  * Since the P-value is very small and it is almost equivalent to zero, We have convincing evidence to **reject the null hypothesis (Ho)** in favour of alternative hypothesis.
+  * In the context of the research question, this means that there is a corelation between number of children and financial satisfaction of the respondent.
+  
